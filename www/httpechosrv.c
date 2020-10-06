@@ -21,6 +21,8 @@ int open_listenfd(int port);
 void echo(int connfd);
 void *thread(void *vargp);
 
+char* itoa(int value, char* result, int base);
+
 int main(int argc, char **argv) 
 {
     int listenfd, *connfdp, port, clientlen=sizeof(struct sockaddr_in);
@@ -46,6 +48,7 @@ int main(int argc, char **argv)
 void * thread(void * vargp) 
 {  
     int connfd = *((int *)vargp);
+    free(vargp);
     pthread_detach(pthread_self()); 
     size_t n;
   
@@ -68,25 +71,63 @@ void * thread(void * vargp)
     get_request = strtok(NULL, " ");
 
     //we now have user file request
-    printf("token is %s\n",get_request );
     char files[MAXLINE];
     strcpy(files, "./files");
-    printf("files is %s\n",files );
+    printf("%s\n", get_request);
     FILE *fp;
-    
+
+
+
+
+
+    if(strcmp(get_request, "/")==0){
+        printf("load index\n");
+
+        fp = fopen("index.html", "r");
+
+    //copy file contents to string file_contents
+    char file_contents[MAXLINE];
+    int i =0;
+    char c;
+    int file_size;
+    c = fgetc(fp);
+    while(c != EOF){
+        file_contents[i] = c;
+        i++;
+        c =fgetc(fp);
+    }
+    file_size= strlen(file_contents);
+    welcome(connfd, file_contents, file_size);
+
+
+
+    }//if
+
+    else{
     //add ./files to get_request
-    strcat(files,get_request);
+   /* strcat(files,get_request);
     strcpy(get_request, files);
-    printf("get request is %s\n", get_request);
+    printf("get request is %s\n", get_request);*/
     fp = fopen(get_request, "r");
     if(fp == NULL){
         printf("File not found!\n");
+        return NULL;
     }
 
-
-
-    free(vargp);
-   
+    //copy file contents to string file_contents
+    char file_contents[MAXLINE];
+    int i =0;
+    char c;
+    c = fgetc(fp);
+    while(c != EOF){
+        file_contents[i] = c;
+        i++;
+        c =fgetc(fp);
+    }
+    
+    welcome(connfd, file_contents);
+    
+   }//else
     //echo(connfd);
    
     close(connfd);
@@ -103,6 +144,7 @@ void echo(int connfd)
     char buf[MAXLINE]; 
     char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:32\r\n\r\n<html><h1>Hello CSCI4273 Course!</h1>"; 
     
+
     n = read(connfd, buf, MAXLINE);
     printf("server received the following request:\n%s\n",buf);
     strcpy(buf,httpmsg);
@@ -111,19 +153,26 @@ void echo(int connfd)
     
 }
 
-void welcome(int connfd, char *requested_file) 
+void welcome(int connfd, char *requested_file, int file_size) 
 {
 
     
     char buf[MAXLINE]; 
-    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:32\r\n\r\n"; 
+    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:";
+    char after_content_length[]="\r\n\r\n";
+    char content_length[MAXLINE];
+    printf("seg\n");
+    //convert file size int to string
+    itoa(file_size, content_length, 10);
+    printf("seg\n");
+    strcat(httpmsg, content_length);
+    strcat(httpmsg, after_content_length);
+    
 
-    
-    
-    printf("server received the following request:\n%s\n",buf);
-    strcpy(buf,httpmsg);
-    printf("server returning a http message with the following content.\n%s\n",buf);
-    write(connfd, buf,strlen(httpmsg));
+    //add file contents to http header
+    strcat(httpmsg, requested_file);
+    printf("server returning a http message with the following content.\n%s\n",httpmsg);
+    write(connfd, httpmsg,strlen(httpmsg));
     
 }
 
@@ -174,3 +223,33 @@ int open_listenfd(int port)
     return listenfd;
 } /* end open_listenfd */
 
+//function to convert into to string
+//source:https://stackoverflow.com/questions/8257714/how-to-convert-an-int-to-string-in-c/23840699#:~:text=You%20can%20use%20itoa(),to%20convert%20any%20value%20beforehand.
+/**
+ * C++ version 0.4 char* style "itoa":
+ * Written by Lukás Chmela
+ * Released under GPLv3.
+ */
+char* itoa(int value, char* result, int base) {
+    // check that the base if valid
+    if (base < 2 || base > 36) { *result = '\0'; return result; }
+
+    char* ptr = result, *ptr1 = result, tmp_char;
+    int tmp_value;
+
+    do {
+        tmp_value = value;
+        value /= base;
+        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
+    } while ( value );
+
+    // Apply negative sign
+    if (tmp_value < 0) *ptr++ = '-';
+    *ptr-- = '\0';
+    while(ptr1 < ptr) {
+        tmp_char = *ptr;
+        *ptr--= *ptr1;
+        *ptr1++ = tmp_char;
+    }
+    return result;
+}
