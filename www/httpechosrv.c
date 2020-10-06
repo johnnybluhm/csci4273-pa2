@@ -69,7 +69,21 @@ void * thread(void * vargp)
 
     //we now have user file request
     printf("token is %s\n",get_request );
+    char files[MAXLINE];
+    strcpy(files, "./files");
+    printf("files is %s\n",files );
+    FILE *fp;
     
+    //add ./files to get_request
+    strcat(files,get_request);
+    strcpy(get_request, files);
+    printf("get request is %s\n", get_request);
+    fp = fopen(get_request, "r");
+    if(fp == NULL){
+        printf("File not found!\n");
+    }
+
+
 
     free(vargp);
    
@@ -90,6 +104,22 @@ void echo(int connfd)
     char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:32\r\n\r\n<html><h1>Hello CSCI4273 Course!</h1>"; 
     
     n = read(connfd, buf, MAXLINE);
+    printf("server received the following request:\n%s\n",buf);
+    strcpy(buf,httpmsg);
+    printf("server returning a http message with the following content.\n%s\n",buf);
+    write(connfd, buf,strlen(httpmsg));
+    
+}
+
+void welcome(int connfd, char *requested_file) 
+{
+
+    
+    char buf[MAXLINE]; 
+    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:32\r\n\r\n"; 
+
+    
+    
     printf("server received the following request:\n%s\n",buf);
     strcpy(buf,httpmsg);
     printf("server returning a http message with the following content.\n%s\n",buf);
