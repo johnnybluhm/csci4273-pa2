@@ -50,12 +50,30 @@ void * thread(void * vargp)
     size_t n;
   
     char request[MAXLINE];
-    //n = read(connfd, request, MAXLINE);
-   
+
+
+    //read from browser
+    char *request_header;
+    n = read(connfd, request, MAXLINE);
+
+    //get first line of http request
+    //gives string <request type> </wherever> <HTTP/1.1>
+    request_header = strtok(request, "\n");  
     
+    char *request_header_token;
+    request_header_token = strtok(request_header," ");
+
+    //parse string further
+    char *get_request;
+    get_request = strtok(NULL, " ");
+
+    //we now have user file request
+    printf("token is %s\n",get_request );
+    
+
     free(vargp);
    
-    echo(connfd);
+    //echo(connfd);
    
     close(connfd);
     return NULL;
