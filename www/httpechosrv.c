@@ -37,6 +37,11 @@ int main(int argc, char **argv)
 
     listenfd = open_listenfd(port);
     printf("listening on port %d\n", port);
+
+
+
+
+
     while (1) {    
 	connfdp = malloc(sizeof(int));
 	*connfdp = accept(listenfd, (struct sockaddr*)&clientaddr, &clientlen);
@@ -47,6 +52,9 @@ int main(int argc, char **argv)
 /* thread routine */
 void * thread(void * vargp) 
 {  
+
+    char s[100];
+    printf("%s\n", getcwd(s, 100)); 
     int connfd = *((int *)vargp);
     free(vargp);
     pthread_detach(pthread_self()); 
@@ -97,6 +105,8 @@ void * thread(void * vargp)
         c =fgetc(fp);
     }
     file_size= strlen(file_contents);
+
+    printf("here index eneters welcome");
     welcome(connfd, file_contents, file_size);
 
 
@@ -106,9 +116,17 @@ void * thread(void * vargp)
     else{
     //add ./files to get_request
    /* strcat(files,get_request);
-    strcpy(get_request, files);
-    printf("get request is %s\n", get_request);*/
-    fp = fopen(get_request, "r");
+    strcpy(get_request, files);*/
+
+    //adds . to files so they can be accessed
+    char period[MAXBUF];
+    strcpy(period, ".");
+    char get_request_cur_dir[MAXBUF];
+    strcat(period, get_request);
+    strcpy(get_request_cur_dir, period);
+    printf("get request is %s\n", get_request);
+
+    fp = fopen(get_request_cur_dir, "r");
     if(fp == NULL){
         printf("File not found!\n");
         return NULL;
@@ -124,8 +142,10 @@ void * thread(void * vargp)
         i++;
         c =fgetc(fp);
     }
-    
-    welcome(connfd, file_contents);
+    int file_size;
+    file_size= strlen(file_contents);
+    //printf("%s\n",file_contents);
+    welcome(connfd, file_contents, file_size);
     
    }//else
     //echo(connfd);
@@ -161,10 +181,10 @@ void welcome(int connfd, char *requested_file, int file_size)
     char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:";
     char after_content_length[]="\r\n\r\n";
     char content_length[MAXLINE];
-    printf("seg\n");
+    
     //convert file size int to string
     itoa(file_size, content_length, 10);
-    printf("seg\n");
+    
     strcat(httpmsg, content_length);
     strcat(httpmsg, after_content_length);
     
