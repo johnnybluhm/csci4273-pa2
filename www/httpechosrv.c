@@ -21,6 +21,9 @@ int open_listenfd(int port);
 void echo(int connfd);
 void *thread(void *vargp);
 
+void get_html(int connfd, char *requested_file, int file_size);
+void get_image(int connfd, FILE *picture);
+
 char* itoa(int value, char* result, int base);
 
 int main(int argc, char **argv) 
@@ -52,9 +55,6 @@ int main(int argc, char **argv)
 /* thread routine */
 void * thread(void * vargp) 
 {  
-
-    char s[100];
-    printf("%s\n", getcwd(s, 100)); 
     int connfd = *((int *)vargp);
     free(vargp);
     pthread_detach(pthread_self()); 
@@ -79,19 +79,59 @@ void * thread(void * vargp)
     get_request = strtok(NULL, " ");
 
     //we now have user file request
-    char files[MAXLINE];
-    strcpy(files, "./files");
     printf("%s\n", get_request);
+    if(strcmp(get_request,"/socketcluster/")==0){
+        return NULL;
+    }
+
+    //get extension of file
+    char *extension;
+    char *parse;
+    char get_request_copy[MAXBUF];
+    strcpy(get_request_copy, get_request);
+    //char *dot = ".";
+
+    //get first part of request
+    parse = strtok(get_request_copy, ".");
+    printf("%s\n",parse);
+    //get extension
+
+    extension = strtok(NULL, ".");
+
+    //handle further parsing when needed
+    if(
+        strcmp(extension,"mouswheel-3") == 0 || 
+        strcmp(extension,"fancybox-1") == 0 || 
+        strcmp(extension,"4") == 0 ||
+        strcmp(extension,"easing-1") == 0
+        )
+    {
+        if(strcmp(get_request,"jquery-fancybox-1.3.4.css") == 0){
+            strcpy(extension, "css");
+        }
+        else{
+            strcpy(extension, "js");
+        }
+    }//further parsing
+
+    
+    //char *extension_copy;
+    //strcpy(extension_copy, extension);
+    //add back extension so get_request still good
+    
+    //strcat(get_request, extension_copy);
+
+    printf("extension is %s\n",extension);
+
     FILE *fp;
 
 
 
 
-
+    //load index page
     if(strcmp(get_request, "/")==0){
-        printf("load index\n");
-
-        fp = fopen("index.html", "r");
+    
+    fp = fopen("index.html", "r");
 
     //copy file contents to string file_contents
     char file_contents[MAXLINE];
@@ -106,19 +146,64 @@ void * thread(void * vargp)
     }
     file_size= strlen(file_contents);
 
-    printf("here index eneters welcome");
-    welcome(connfd, file_contents, file_size);
+    get_html(connfd, file_contents, file_size);
 
 
 
-    }//if
+    }//if index
 
-    else{
-    //add ./files to get_request
-   /* strcat(files,get_request);
-    strcpy(get_request, files);*/
+    //handle images
+    else if(
+        strcmp(extension,"png") == 0 || 
+        strcmp(extension,"gif") == 0 || 
+        strcmp(extension,"jpg") == 0
+        )
+    {
 
     //adds . to files so they can be accessed
+    //explored trying to change cd to root but seems like not necessary    
+    char period[MAXBUF];
+    strcpy(period, ".");
+    char get_request_cur_dir[MAXBUF];
+    strcat(period, get_request);
+    strcpy(get_request_cur_dir, period);
+
+
+    //open file in binary mode
+    fp = fopen(get_request_cur_dir, "rb");
+    if(fp == NULL){
+        printf("File not found!\n");
+        return NULL;
+    }
+
+    //copy file contents to string file_contents
+    char file_contents[MAXLINE];
+    int i =0;
+    char c;
+    c = fgetc(fp);
+    while(c != EOF){
+        file_contents[i] = c;
+        i++;
+        c =fgetc(fp);
+    }
+
+    
+    int file_size;
+    file_size= strlen(file_contents);
+    printf("%s\n",file_contents);
+    printf("%d\n",file_size );
+
+    get_html_image(connfd, file_contents, file_size);
+    //printf("%s\n",file_contents);*/
+    //get_image(connfd, fp);
+    } //image elif
+
+
+    //handle html
+    else if (strcmp(extension, "html") == 0){
+
+    //adds . to files so they can be accessed
+    //explored trying to change cd to root but seems like not necessary
     char period[MAXBUF];
     strcpy(period, ".");
     char get_request_cur_dir[MAXBUF];
@@ -145,14 +230,57 @@ void * thread(void * vargp)
     int file_size;
     file_size= strlen(file_contents);
     //printf("%s\n",file_contents);
-    welcome(connfd, file_contents, file_size);
+    get_html(connfd, file_contents, file_size);
     
-   }//else
-    //echo(connfd);
+   }//else if html
+
+//handle js and css
+    else if(
+        strcmp(extension,"js") == 0 || 
+        strcmp(extension,"css") == 0
+        )
+    {
+    //adds . to files so they can be accessed
+    //explored trying to change cd to root but seems like not necessary
+    char period[MAXBUF];
+    strcpy(period, ".");
+    char get_request_cur_dir[MAXBUF];
+    strcat(period, get_request);
+    strcpy(get_request_cur_dir, period);
+    printf("get request is %s\n", get_request);
+
+    fp = fopen(get_request_cur_dir, "r");
+    if(fp == NULL){
+        printf("File not found!\n");
+        return NULL;
+    }
+
+    //copy file contents to string file_contents
+    char file_contents[MAXLINE];
+    int i =0;
+    char c;
+    c = fgetc(fp);
+    while(c != EOF){
+        file_contents[i] = c;
+        i++;
+        c =fgetc(fp);
+    }//while
+    int file_size;
+    file_size= strlen(file_contents);
+    //printf("%s\n",file_contents);
+    get_html(connfd, file_contents, file_size);
+    }//js and css elif
+   else if(extension == NULL){
+    printf("extension was NULL \n");
+   }
+   else{
+    printf("saved seg dickhead\n");
+   }
+    
    
     close(connfd);
     return NULL;
-}
+        }
 
 /*
  * echo - read and echo text lines until client closes connection
@@ -173,7 +301,7 @@ void echo(int connfd)
     
 }
 
-void welcome(int connfd, char *requested_file, int file_size) 
+void get_html(int connfd, char *requested_file, int file_size) 
 {
 
     
@@ -191,22 +319,81 @@ void welcome(int connfd, char *requested_file, int file_size)
 
     //add file contents to http header
     strcat(httpmsg, requested_file);
-    printf("server returning a http message with the following content.\n%s\n",httpmsg);
+    //printf("server returning a http message with the following content.\n%s\n",httpmsg);
     write(connfd, httpmsg,strlen(httpmsg));
     
 }
-
-void test(int connfd) 
+void get_html_image(int connfd, char *requested_file, int file_size) 
 {
-    size_t n; 
-    char buf[MAXLINE]; 
-    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:32\r\n\r\n<html><h1>Hello CSCI4273 Course!</h1>"; 
 
-    n = read(connfd, buf, MAXLINE);
-    printf("server received the following request:\n%s\n",buf);
-    strcpy(buf,httpmsg);
-    printf("server returning a http message with the following content.\n%s\n",buf);
-    write(connfd, buf,strlen(httpmsg));
+    
+    char buf[MAXLINE]; 
+    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:image/jpeg\r\nContent-Length:";
+    char after_content_length[]="\r\n\r\n";
+    char content_length[MAXLINE];
+    
+    //convert file size int to string
+    itoa(file_size, content_length, 10);
+    
+    strcat(httpmsg, content_length);
+    strcat(httpmsg, after_content_length);
+    
+
+    //add file contents to http header
+    strcat(httpmsg, requested_file);
+    //printf("server returning a http message with the following content.\n%s\n",httpmsg);
+    write(connfd, httpmsg,strlen(httpmsg));
+    
+}
+//source: https://stackoverflow.com/questions/15445207/sending-image-jpeg-through-socket-in-c-linux
+void get_image(int connfd, FILE *picture) 
+{   
+
+    int size, stat, packet_index, read_size;
+    packet_index = 1;
+    char send_buffer[MAXBUF];
+    char read_buffer[MAXBUF];
+    fseek(picture, 0, SEEK_END);
+    size = ftell(picture);
+    fseek(picture, 0, SEEK_SET);
+
+
+     //Send Picture Size
+   printf("Sending Picture Size\n");
+   write(connfd, (void *)&size, sizeof(int));
+
+   //Send Picture as Byte Array
+   printf("Sending Picture as Byte Array\n");
+
+
+   while(!feof(picture)) {
+   //while(packet_index = 1){
+      //Read from the file into our send buffer
+      read_size = fread(send_buffer, 1, sizeof(send_buffer)-1, picture);
+
+      //Send data through our socket 
+      do{
+        stat = write(connfd, send_buffer, read_size);  
+      }while (stat < 0);
+
+      printf("Packet Number: %i\n",packet_index);
+      printf("Packet Size Sent: %i\n",read_size);     
+      printf(" \n");
+      printf(" \n");
+
+
+      packet_index++;  
+
+      //Zero out our send buffer
+      //bzero(send_buffer, sizeof(send_buffer));
+  }//while
+    
+}
+
+void get_js(int connfd, char *requested_file, int file_size)  
+{
+    printf("sending js\n");
+    write(connfd, requested_file, file_size);
     
 }
 
