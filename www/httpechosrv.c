@@ -22,7 +22,7 @@ void echo(int connfd);
 void *thread(void *vargp);
 
 void get_html(int connfd, char *requested_file, int file_size);
-void get_image(int connfd, FILE *picture);
+void get_image(int connfd, FILE *requested_file, char *extension);
 
 char* itoa(int value, char* result, int base);
 
@@ -40,10 +40,6 @@ int main(int argc, char **argv)
 
     listenfd = open_listenfd(port);
     printf("listening on port %d\n", port);
-
-
-
-
 
     while (1) {    
 	connfdp = malloc(sizeof(int));
@@ -80,6 +76,11 @@ void * thread(void * vargp)
 
     //we now have user file request
     
+    if(strstr(get_request, ".") != NULL){
+
+
+
+
 
     if(strcmp(get_request,"/socketcluster/")==0){
         return NULL;
@@ -106,7 +107,7 @@ if (strcmp(get_request,"/")==0){
 
     //handle further parsing when needed
     if(
-        strcmp(extension,"mouswheel-3") == 0 || 
+        strcmp(extension,"mousewheel-3") == 0 || 
         strcmp(extension,"fancybox-1") == 0 || 
         strcmp(extension,"4") == 0 ||
         strcmp(extension,"easing-1") == 0
@@ -115,9 +116,12 @@ if (strcmp(get_request,"/")==0){
         if(strcmp(get_request,"jquery-fancybox-1.3.4.css") == 0){
             strcpy(extension, "css");
         }
+        else if(strcmp(get_request,"jquery.fancybox-1.3.4.pack.js")){
+            
+            strcpy(extension, "js");
+        }
 
         else{
-            printf("accessed? \n");
             strcpy(extension, "js");
         }
     }//further parsing
@@ -130,12 +134,12 @@ if (strcmp(get_request,"/")==0){
     //add back extension so get_request still good
     
     //strcat(get_request, extension_copy);
+printf("SEGS AFTER\n");
+printf("%s has thread id %o and extension %s \n", get_request, pthread_self, extension);
+printf("PRINT THIS\n");
+printf("handling js");
 
-printf("get request is %s\n", get_request);
-printf("extension is %s\n", extension);
 
-
-    
     FILE *fp;
 
     //load index page
@@ -153,14 +157,9 @@ printf("extension is %s\n", extension);
         file_contents[i] = c;
         i++;
         c =fgetc(fp);
-    }
-    
+    }    
     file_size= strlen(file_contents);
-
     get_html(connfd, file_contents, file_size);
-
-
-
     }//if index
 
     //handle images
@@ -171,7 +170,6 @@ printf("extension is %s\n", extension);
         strcmp(extension,"ico") == 0
         )
     {
-
     //adds . to files so they can be accessed
     //explored trying to change cd to root but seems like not necessary    
     char period[MAXBUF];
@@ -180,7 +178,6 @@ printf("extension is %s\n", extension);
     strcat(period, get_request);
     strcpy(get_request_cur_dir, period);
 
-
     //open file in binary mode
     fp = fopen(get_request_cur_dir, "rb");
     if(fp == NULL){
@@ -188,24 +185,7 @@ printf("extension is %s\n", extension);
         return NULL;
     }
 
-    //copy file contents to string file_contents
-  /*  char file_contents[MAXLINE];
-    int i =0;
-    char c;
-    c = fgetc(fp);
-    while(c != EOF){
-        file_contents[i] = c;
-        i++;
-        c =fgetc(fp);
-    }
-
-    
-    int file_size;
-    file_size= strlen(file_contents);
-    printf("%s\n",file_contents);
-    printf("%d\n",file_size );*/
-
-    get_image(connfd, fp);
+    get_image(connfd, fp, extension);
     //printf("%s\n",file_contents);*/
     //get_image(connfd, fp);
     } //image elif
@@ -225,7 +205,7 @@ printf("extension is %s\n", extension);
     char get_request_cur_dir[MAXBUF];
     strcat(period, get_request);
     strcpy(get_request_cur_dir, period);
-    printf("get request is %s\n", get_request);
+    printf("handling html");
 
     fp = fopen(get_request_cur_dir, "r");
     if(fp == NULL){
@@ -256,6 +236,8 @@ printf("extension is %s\n", extension);
         strcmp(extension,"css") == 0
         )
     {
+
+
     //adds . to files so they can be accessed
     //explored trying to change cd to root but seems like not necessary
     char period[MAXBUF];
@@ -263,7 +245,7 @@ printf("extension is %s\n", extension);
     char get_request_cur_dir[MAXBUF];
     strcat(period, get_request);
     strcpy(get_request_cur_dir, period);
-    printf("get request is %s\n", get_request);
+    
 
     fp = fopen(get_request_cur_dir, "r");
 
@@ -298,8 +280,9 @@ printf("extension is %s\n", extension);
    
     close(connfd);
     return NULL;
-        }//thread
 
+}//nested if
+}//thread
 void get_html(int connfd, char *requested_file, int file_size) 
 {    
     char buf[MAXLINE]; 
@@ -322,13 +305,22 @@ void get_html(int connfd, char *requested_file, int file_size)
 }
 
 //source: https://stackoverflow.com/questions/15445207/sending-image-jpeg-through-socket-in-c-linux
-void get_image(int connfd, FILE *requested_file) 
+void get_image(int connfd, FILE *requested_file, char *extension) 
 {   
     char *sendbuf;
     int file_size;
     char *binary_data;
     char buf[MAXLINE]; 
-    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:image/jpeg\r\nContent-Length:";
+    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:image/";
+    char after_extension[] = "\r\nContent-Length:";
+
+    //add type of image
+    strcat(httpmsg, extension);
+    strcat(httpmsg, after_extension);
+
+
+
+    
     char after_content_length[]="\r\n\r";
     char content_length[MAXLINE];
     
