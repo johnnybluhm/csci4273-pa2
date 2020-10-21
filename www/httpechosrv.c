@@ -135,9 +135,7 @@ void * thread(void * vargp)
         }
     }//further parsing
 
-printf("%s has thread id %o and extension %s \n", get_request, pthread_self, extension);
-
-    
+printf("%s has thread id %lu and extension %s \n", get_request, pthread_self, extension);    
 
     //load index page
     if(strcmp(get_request, "/")==0){
