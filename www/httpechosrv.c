@@ -384,6 +384,10 @@ void get_image(int connfd, FILE *requested_file, char *extension)
 }
 void get_js(int connfd, FILE *requested_file, char *extension) 
 {   
+    if(requested_file == NULL){
+
+    }
+    else{
     char *sendbuf;
     int file_size;
     char *binary_data;
@@ -420,10 +424,15 @@ void get_js(int connfd, FILE *requested_file, char *extension)
     
     //send data
     write(connfd, sendbuf, file_size);    
-}
+    }//else
+}//get js
 
 void get_css(int connfd, FILE *requested_file, char *extension) 
-{   
+{  
+    if(requested_file == NULL){
+
+    }
+    else{ 
     char *sendbuf;
     int file_size;
     char *binary_data;
@@ -460,7 +469,8 @@ void get_css(int connfd, FILE *requested_file, char *extension)
     
     //send binary data
     write(connfd, sendbuf, file_size);    
-}
+    }//else
+}//get css
 void get_error(int connfd, char * error_msg)
 {
 
