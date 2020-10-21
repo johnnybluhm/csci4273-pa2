@@ -23,6 +23,8 @@ void *thread(void *vargp);
 
 void get_html(int connfd, char *requested_file, int file_size);
 void get_image(int connfd, FILE *requested_file, char *extension);
+void get_css(int connfd, FILE *requested_file, char *extension);
+void get_js(int connfd, FILE *requested_file, char *extension);
 
 char* itoa(int value, char* result, int base);
 
@@ -51,6 +53,11 @@ int main(int argc, char **argv)
 /* thread routine */
 void * thread(void * vargp) 
 {  
+  /*  char cwd[MAXBUF];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+       printf("Current working dir: %s\n", cwd);
+   }*/
+
     int connfd = *((int *)vargp);
     free(vargp);
     pthread_detach(pthread_self()); 
@@ -65,8 +72,8 @@ void * thread(void * vargp)
 
     //get first line of http request
     //gives string <request type> </wherever> <HTTP/1.1>
-    request_header = strtok(request, "\n");  
     
+    request_header = strtok(request, "\n");  
     char *request_header_token;
     request_header_token = strtok(request_header," ");
 
@@ -76,11 +83,8 @@ void * thread(void * vargp)
 
     //we now have user file request
     
-    if(strstr(get_request, ".") != NULL){
-
-
-
-
+    //checks if address has period, if not not valid
+    if(strstr(get_request, ".") != NULL || strcmp(get_request, "/")==0){
 
     if(strcmp(get_request,"/socketcluster/")==0){
         return NULL;
@@ -126,20 +130,7 @@ if (strcmp(get_request,"/")==0){
         }
     }//further parsing
 
-
-
-    
-    //char *extension_copy;
-    //strcpy(extension_copy, extension);
-    //add back extension so get_request still good
-    
-    //strcat(get_request, extension_copy);
-printf("SEGS AFTER\n");
 printf("%s has thread id %o and extension %s \n", get_request, pthread_self, extension);
-printf("PRINT THIS\n");
-printf("handling js");
-
-
     FILE *fp;
 
     //load index page
@@ -171,13 +162,16 @@ printf("handling js");
         )
     {
     //adds . to files so they can be accessed
-    //explored trying to change cd to root but seems like not necessary    
+    //explored trying to change cd to root but seems like not necessary   
+    printf("handling image\n"); 
     char period[MAXBUF];
     strcpy(period, ".");
     char get_request_cur_dir[MAXBUF];
     strcat(period, get_request);
     strcpy(get_request_cur_dir, period);
 
+
+    printf("%s \n", get_request_cur_dir);
     //open file in binary mode
     fp = fopen(get_request_cur_dir, "rb");
     if(fp == NULL){
@@ -205,7 +199,7 @@ printf("handling js");
     char get_request_cur_dir[MAXBUF];
     strcat(period, get_request);
     strcpy(get_request_cur_dir, period);
-    printf("handling html");
+    printf("handling html\n");
 
     fp = fopen(get_request_cur_dir, "r");
     if(fp == NULL){
@@ -237,7 +231,8 @@ printf("handling js");
         )
     {
 
-
+        printf("handling js\n");
+        
     //adds . to files so they can be accessed
     //explored trying to change cd to root but seems like not necessary
     char period[MAXBUF];
@@ -248,26 +243,20 @@ printf("handling js");
     
 
     fp = fopen(get_request_cur_dir, "r");
-
+    
     if(fp == NULL){
         printf("File not found!\n");
         return NULL;
     }
 
-    //copy file contents to string file_contents
-    char file_contents[MAXLINE];
-    int i =0;
-    char c;
-    c = fgetc(fp);
-    while(c != EOF){
-        file_contents[i] = c;
-        i++;
-        c =fgetc(fp);
-    }//while
-    int file_size;
-    file_size= strlen(file_contents);
+   
+    if(strcmp(extension,"js") == 0){
     
-    get_js(connfd, file_contents, file_size);
+    get_js(connfd, fp, extension);
+}
+else{
+    get_css(connfd, fp,extension);
+}
 
     }//js and css elif
    else if(strcmp(extension,NULL)==0){
@@ -276,13 +265,30 @@ printf("handling js");
    else{
     printf("saved seg\n");
    }
+
+
     
    
     close(connfd);
     return NULL;
 
 }//nested if
+else{
+    printf("ENTER A VALID FILE\n");
+}
 }//thread
+
+/*
+
+
+ 
+
+HELPER FUNCTIONS BELOW
+
+ 
+
+
+ */
 void get_html(int connfd, char *requested_file, int file_size) 
 {    
     char buf[MAXLINE]; 
@@ -359,25 +365,112 @@ void get_image(int connfd, FILE *requested_file, char *extension)
 }//for*/
     
 }
-
-void get_js(int connfd, char *requested_file, int file_size)  
-{
+void get_js(int connfd, FILE *requested_file, char *extension) 
+{   
+    char *sendbuf;
+    int file_size;
+    char *binary_data;
     char buf[MAXLINE]; 
-    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:";
-    char after_content_length[]="\r\n\r\n";
+    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:application/";
+    char after_extension[] = "\r\nContent-Length:";
+
+    //add type of image
+    strcat(httpmsg, extension);
+    strcat(httpmsg, after_extension);
+
+
+
+    
+    char after_content_length[]="\r\n\r";
     char content_length[MAXLINE];
     
+    fseek (requested_file, 0, SEEK_END);
+
+    file_size = ftell(requested_file);
+    printf("file size is %d\n",file_size );
+    rewind(requested_file);         
+    sendbuf = (char*) malloc (sizeof(char)*file_size);
+    size_t result = fread(sendbuf, 1, file_size, requested_file);
+
+  /*  for(int i = 0; i<file_size; i++){
+         printf("%x\n",sendbuf[i] );
+        strcat(binary_data);
+}*/
     //convert file size int to string
     itoa(file_size, content_length, 10);
     
     strcat(httpmsg, content_length);
     strcat(httpmsg, after_content_length);
-    
+    strcat (httpmsg, "Connection: keep-alive\r\n\r\n");
 
-    //add file contents to http header
-    strcat(httpmsg, requested_file);
-    //printf("server returning a http message with the following content.\n%s\n",httpmsg);
+    //send http header
     write(connfd, httpmsg,strlen(httpmsg));
+
+    int buf_index = 0;
+    int packets = file_size / MAXBUF;
+    
+    //send binary data
+    write(connfd, sendbuf, file_size);
+
+
+    /*for(int i = 0; i < packets; i++){
+    write(connfd,(*sendbuf)+buf_index,MAXBUF);
+    buf_index = buf_index + MAXBUF;
+}//for*/
+    
+}
+void get_css(int connfd, FILE *requested_file, char *extension) 
+{   
+    char *sendbuf;
+    int file_size;
+    char *binary_data;
+    char buf[MAXLINE]; 
+    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/";
+    char after_extension[] = "\r\nContent-Length:";
+
+    //add type of image
+    strcat(httpmsg, extension);
+    strcat(httpmsg, after_extension);
+
+
+
+    
+    char after_content_length[]="\r\n\r";
+    char content_length[MAXLINE];
+    
+    fseek (requested_file, 0, SEEK_END);
+
+    file_size = ftell(requested_file);
+    printf("file size is %d\n",file_size );
+    rewind(requested_file);         
+    sendbuf = (char*) malloc (sizeof(char)*file_size);
+    size_t result = fread(sendbuf, 1, file_size, requested_file);
+
+  /*  for(int i = 0; i<file_size; i++){
+         printf("%x\n",sendbuf[i] );
+        strcat(binary_data);
+}*/
+    //convert file size int to string
+    itoa(file_size, content_length, 10);
+    
+    strcat(httpmsg, content_length);
+    strcat(httpmsg, after_content_length);
+    strcat (httpmsg, "Connection: keep-alive\r\n\r\n");
+
+    //send http header
+    write(connfd, httpmsg,strlen(httpmsg));
+
+    int buf_index = 0;
+    int packets = file_size / MAXBUF;
+    
+    //send binary data
+    write(connfd, sendbuf, file_size);
+
+
+    /*for(int i = 0; i < packets; i++){
+    write(connfd,(*sendbuf)+buf_index,MAXBUF);
+    buf_index = buf_index + MAXBUF;
+}//for*/
     
 }
 
