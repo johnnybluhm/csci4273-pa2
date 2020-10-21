@@ -25,6 +25,7 @@ void get_html(int connfd, char *requested_file, int file_size);
 void get_image(int connfd, FILE *requested_file, char *extension);
 void get_css(int connfd, FILE *requested_file, char *extension);
 void get_js(int connfd, FILE *requested_file, char *extension);
+void get_text(int connfd, char *requested_file, int file_size);
 
 char* itoa(int value, char* result, int base);
 
@@ -184,7 +185,7 @@ printf("%s has thread id %o and extension %s \n", get_request, pthread_self, ext
     //get_image(connfd, fp);
     } //image elif
 
-    //handle html
+    //handle html and txt
     else if (
         strcmp(extension, "html") == 0 ||
         strcmp(extension, "html~") == 0 ||
@@ -220,7 +221,12 @@ printf("%s has thread id %o and extension %s \n", get_request, pthread_self, ext
     int file_size;
     file_size= strlen(file_contents);
     //printf("%s\n",file_contents);
-    get_html(connfd, file_contents, file_size);
+    if(strcmp(extension,"txt")==0){
+        get_text(connfd, file_contents, file_size);
+    }
+    else{
+        get_html(connfd, file_contents, file_size);
+    }
     
    }//else if html
 
@@ -293,6 +299,26 @@ void get_html(int connfd, char *requested_file, int file_size)
 {    
     char buf[MAXLINE]; 
     char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/html\r\nContent-Length:";
+    char after_content_length[]="\r\n\r\n";
+    char content_length[MAXLINE];
+    
+    //convert file size int to string
+    itoa(file_size, content_length, 10);
+    
+    strcat(httpmsg, content_length);
+    strcat(httpmsg, after_content_length);
+    
+
+    //add file contents to http header
+    strcat(httpmsg, requested_file);
+    //printf("server returning a http message with the following content.\n%s\n",httpmsg);
+    write(connfd, httpmsg,strlen(httpmsg));
+    
+}
+void get_text(int connfd, char *requested_file, int file_size) 
+{    
+    char buf[MAXLINE]; 
+    char httpmsg[]="HTTP/1.1 200 Document Follows\r\nContent-Type:text/plain\r\nContent-Length:";
     char after_content_length[]="\r\n\r\n";
     char content_length[MAXLINE];
     
